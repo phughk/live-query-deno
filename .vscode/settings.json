@@ -4,6 +4,7 @@
     "src",
     "compile.ts",
     "mod.ts",
+    "live-demo.ts",
     "test/e2e/shared.js",
     "test/e2e/deno.js",
     "test/e2e/scripts/compare-dump.js"

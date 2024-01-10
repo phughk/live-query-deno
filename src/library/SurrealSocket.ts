@@ -48,10 +48,11 @@ export class SurrealSocket {
 		this.closed = new Promise((r) => (this.resolveClosed = r));
 		this.onOpen = onOpen;
 		this.onClose = onClose;
-		this.url = processUrl(url, {
-			http: "ws",
-			https: "wss",
-		}) + "/rpc";
+		this.url =
+			processUrl(url, {
+				http: "ws",
+				https: "wss",
+			}) + "/rpc";
 	}
 
 	open() {
@@ -98,10 +99,18 @@ export class SurrealSocket {
 
 		this.ws.addEventListener("message", (e) => {
 			const res = JSON.parse(
-				e.data.toString(),
+				e.data.toString()
 			) as RawSocketMessageResponse;
 			if ("method" in res && res.method === "notify") {
 				this.handleLiveBatch(res.params);
+			} else if ("result" in res && !res.id) {
+				const { id, ...rest } = res.result as Record<string, unknown>;
+				this.handleLiveBatch([
+					{
+						uuid: id,
+						...rest
+					} as UnprocessedLiveQueryResponse,
+				]);
 			} else if (res.id && res.id in this.queue) {
 				this.queue[res.id](res);
 				delete this.queue[res.id];
@@ -114,7 +123,7 @@ export class SurrealSocket {
 	async send(
 		method: string,
 		params: unknown[],
-		callback: (data: Result) => unknown,
+		callback: (data: Result) => unknown
 	) {
 		await this.ready;
 
@@ -125,13 +134,15 @@ export class SurrealSocket {
 
 	async listenLive(
 		uuid: string,
-		callback: (data: LiveQueryResponse) => unknown,
+		callback: (data: LiveQueryResponse) => unknown
 	) {
 		if (!(uuid in this.liveQueue)) this.liveQueue[uuid] = [];
 		this.liveQueue[uuid].push(callback);
 
 		// Cleanup unprocessed messages queue
-		await Promise.all(this.unprocessedLiveResponses[uuid]?.map(callback) ?? []);
+		await Promise.all(
+			this.unprocessedLiveResponses[uuid]?.map(callback) ?? []
+		);
 		delete this.unprocessedLiveResponses[uuid];
 	}
 
@@ -159,18 +170,22 @@ export class SurrealSocket {
 	}
 
 	private async handleLiveBatch(messages: UnprocessedLiveQueryResponse[]) {
-		await Promise.all(messages.map(async ({ uuid, ...message }) => {
-			if (this.liveQueue[uuid]) {
-				await Promise.all(
-					this.liveQueue[uuid].map(async (cb) => await cb(message)),
-				);
-			} else {
-				if (!(uuid in this.unprocessedLiveResponses)) {
-					this.unprocessedLiveResponses[uuid] = [];
+		await Promise.all(
+			messages.map(async ({ uuid, ...message }) => {
+				if (this.liveQueue[uuid]) {
+					await Promise.all(
+						this.liveQueue[uuid].map(
+							async (cb) => await cb(message)
+						)
+					);
+				} else {
+					if (!(uuid in this.unprocessedLiveResponses)) {
+						this.unprocessedLiveResponses[uuid] = [];
+					}
+					this.unprocessedLiveResponses[uuid].push(message);
 				}
-				this.unprocessedLiveResponses[uuid].push(message);
-			}
-		}));
+			})
+		);
 	}
 
 	async close(reason: keyof typeof this.socketClosureReason) {

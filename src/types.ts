@@ -249,6 +249,7 @@ type MaybePromise<T> = T | Promise<T>;
 
 export type RawSocketMessageResponse =
 	| (Result & { id: number })
+	| { id?: never; result: LiveQueryResponse & { id: string } }
 	| RawSocketLiveQueryNotification;
 export type RawSocketLiveQueryNotification = {
 	id: null;

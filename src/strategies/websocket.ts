@@ -209,9 +209,9 @@ export class WebSocketStrategy implements Connection {
 		callback?: (data: LiveQueryResponse<T>) => unknown,
 	) {
 		await this.ready;
-		const res = await this.send<string>("live", [query]);
+		const res = await this.send<[{result: string}]>("query", [query]);
 		if (res.error) throw new Error(res.error.message);
-		if (callback) this.listenLive<T>(res.result, callback);
+		if (callback) this.listenLive<T>(res.result[0].result, callback);
 		return res.result;
 	}
 
